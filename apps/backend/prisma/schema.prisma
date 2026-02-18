@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CANDIDATE
+  ADMIN
+  HR_MANAGER
+}
+
+enum Locale {
+  en
+  fr
+  ar
+}
+
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  RECEIVED
+  IN_REVIEW
+  SHORTLISTED
+  REJECTED
+  INTERVIEW_SCHEDULED
+  HIRED
+}
+
+enum EmailTemplateType {
+  APPLICATION_CONFIRMATION
+  NEW_APPLICATION
+  STATUS_UPDATE
+}
+
+model User {
+  id             String                     @id @default(cuid())
+  role           Role                       @default(CANDIDATE)
+  email          String                     @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  phone          String?
+  birthDate      DateTime?
+  address        String?
+  city           String?
+  wilaya         String?
+  cvFilePath     String?
+  cvOriginalName String?
+  cvMimeType     String?
+  cvSize         Int?
+  preferredLocale Locale                    @default(fr)
+  isActive       Boolean                    @default(true)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  applications   Application[]
+  statusChanges  ApplicationStatusHistory[] @relation("ChangedBy")
+  refreshTokens  RefreshToken[]
+
+  @@index([role])
+  @@index([createdAt])
+  @@index([isActive])
+}
+
+model Service {
+  id           String               @id @default(cuid())
+  email        String?
+  phone        String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  translations ServiceTranslation[]
+  jobs         Job[]
+
+  @@index([createdAt])
+}
+
+model ServiceTranslation {
+  id        String   @id @default(cuid())
+  serviceId String
+  locale    Locale
+  name      String
+
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, locale])
+  @@index([locale])
+}
+
+model Job {
+  id              String           @id @default(cuid())
+  serviceId       String
+  contractType    ContractType
+  wilaya          String
+  city            String
+  experienceYears Int              @default(0)
+  status          JobStatus        @default(DRAFT)
+  publishedAt     DateTime?
+  closingAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  service         Service          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  translations    JobTranslation[]
+  applications    Application[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([serviceId])
+  @@index([wilaya, city])
+}
+
+model JobTranslation {
+  id          String   @id @default(cuid())
+  jobId       String
+  locale      Locale
+  title       String
+  description String   @db.LongText
+
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, locale])
+  @@index([locale])
+}
+
+model Application {
+  id             String              @id @default(cuid())
+  userId         String
+  jobId          String
+  status         ApplicationStatus   @default(RECEIVED)
+  coverLetter    String?             @db.LongText
+  cvFilePath     String
+  cvOriginalName String
+  cvMimeType     String
+  cvSize         Int
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job            Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  statusHistory  ApplicationStatusHistory[]
+
+  @@unique([userId, jobId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([jobId])
+}
+
+model ApplicationStatusHistory {
+  id              String            @id @default(cuid())
+  applicationId   String
+  fromStatus      ApplicationStatus?
+  toStatus        ApplicationStatus
+  changedByUserId String?
+  note            String?
+  createdAt       DateTime          @default(now())
+
+  application     Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy       User?             @relation("ChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Setting {
+  id                            Int      @id @default(1)
+  companyName                   String
+  companyAddress                String
+  companyWebsite                String
+  companyPhone                  String
+  companyEmail                  String
+  savPhone                      String
+  savEmail                      String
+  notifyCandidateOnStatusChange Boolean  @default(true)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        String            @id @default(cuid())
+  type      EmailTemplateType
+  locale    Locale
+  subject   String
+  body      String            @db.LongText
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([type, locale])
+}
+
