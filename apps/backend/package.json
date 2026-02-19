@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/src/main.js",
     "start:prod:app": "node dist/src/main.js",
-    "dev": "nest start --watch",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "dev:run": "node dist/src/main.js",
     "lint": "eslint \"{src,prisma}/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.ts\"",
     "prisma:generate": "prisma generate",
@@ -62,4 +63,3 @@
     "seed": "tsx prisma/seed.ts"
   }
 }
-
